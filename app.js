@@ -6,11 +6,12 @@ const mongoose = require('mongoose');
 const session=require("express-session");
 const passport=require("passport");
 const passportlocalmongoose=require("passport-local-mongoose");
-const flash = require('connect-flash');
+const flash = require('req-flash');
 const  GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 const  findOrCreate = require('mongoose-findorcreate');
 const FacebookStrategy = require('passport-facebook').Strategy;
 const app = express();
+
 //console.log(process.env.API_KEY);
 app.set('view engine', 'ejs');
 
@@ -104,7 +105,9 @@ app.get('/auth/google/secrets',
   passport.authenticate('facebook', { scope: 'read_stream'  })
 );
 app.get("/register",function(req,res){
-    res.render("register");
+    res.render("register",{
+    messageFailure: req.flash('messageFailure')
+    });
 });
 app.get('/secrets',function(req,res){
    User.find({'secret': {$ne:null}},function (err,found){
@@ -160,9 +163,10 @@ app.post('/register',function(req,res){
    User.register({username:req.body.username},req.body.password,function(err,user){
        if(err)
       { console.log(err);
-        res.json({success:false, message:"Your account could not be saved. Error: ", err}) 
+      //  res.json({success:false, message:"Your account could not be saved. Error: ", err}) 
+      req.flash('messageFailure','User already exists!');
       res.redirect("/register");
-
+   
       }
       else{
           passport.authenticate("local")(req,res,function(){
@@ -175,7 +179,7 @@ app.post('/register',function(req,res){
 });
 	
 
-app.post('/login',function(req,res){
+/*app.post('/login',function(req,res){
    const user=new User({
        username:req.body.username,
        password:req.body.password
@@ -184,14 +188,31 @@ app.post('/login',function(req,res){
        if(err)
        {
            console.log(err);
-           res.send("No account found!");
+           return next(err);
        }
        else{
-           passport.authenticate("local")(req,res,function(){
+        /* passport.authenticate("local" )(req,res,function(){
+             if(err)
+             res.send('hi');
+             else
                res.redirect("/secrets");
            })
+        
+           
+         
        }
    })
+});*/
+app.post('/login', function(req, res, next) {
+ 
+  passport.authenticate('local', function(err, user, info) {
+    if (err) { return next(err); }
+    if (!user) { return res.render('erry'); }
+    req.logIn(user, function(err) {
+      if (err) { return next(err); }
+      return res.redirect('/secrets');
+    });
+  })(req, res, next);
 });
 app.listen(3000, function() {
   console.log("Server started on port 3000");
